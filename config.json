@@ -1,0 +1,30 @@
+{
+  "_help": "lcdSize 是贴图尺寸，长宽比要和车上屏幕一致；mirrorModules 每项可填 off/position/full；connectingBadgeStyle 只管出站换乘徽标，填 gray=灰底白字实心（默认）、outline=原来的浅底+线路色描边，站内换乘一律用线路色实心；connectingBadgeGray 是灰底徽标的底色 [R,G,B]；hubBadgesHorizontal 为 true 时，一个站换乘 3 条以上会把徽标横向排成一行，只占一行高度、把空间留给站名；debugLog 打开后会在日志里打印路线与换乘统计",
+
+  "lcdSize": [2185, 280],
+  "pageDuration": 10,
+  "serviceType": "普通|Local",
+  "showCoachNumber": true,
+  "perCarCoachNumber": true,
+  "flipDoorSides": false,
+  "routeMapReverse": false,
+  "showStripArrow": true,
+  "doorAnimation": true,
+  "doorAnimationFps": 10,
+  "showHiddenRoutes": false,
+  "debugLog": true,
+  "connectingBadgeStyle": "gray",
+  "connectingBadgeGray": [110, 117, 124],
+  "hubBadgesHorizontal": true,
+
+  "mirrorRightScreen": true,
+  "mirrorModules": {
+    "logo": "off",
+    "serviceType": "off",
+    "routeName": "off",
+    "routeMap": "full",
+    "stationStrip": "full",
+    "infoPanel": "full",
+    "doorPanel": "full"
+  }
+}
