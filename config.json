@@ -1,5 +1,5 @@
 {
-  "_help": "lcdSize 是贴图尺寸，长宽比要和车上屏幕一致；mirrorModules 每项可填 off/position/full；connectingBadgeStyle 只管出站换乘徽标，填 gray=灰底白字实心（默认）、outline=原来的浅底+线路色描边，站内换乘一律用线路色实心；connectingBadgeGray 是灰底徽标的底色 [R,G,B]；hubBadgesHorizontal 为 true 时，一个站换乘 3 条以上会把徽标横向排成一行，只占一行高度、把空间留给站名；debugLog 打开后会在日志里打印路线与换乘统计",
+  "_help": "lcdSize 是贴图尺寸，长宽比要和车上屏幕一致；mirrorModules 每项可填 off/position/full；connectingBadgeStyle 只管出站换乘徽标，填 gray=灰底白字实心（默认）、outline=原来的浅底+线路色描边，站内换乘一律用线路色实心；connectingBadgeGray 是灰底徽标的底色 [R,G,B]；hubBadgesHorizontal 为 true 时，一个站换乘 3 条以上会把徽标横向排成一行，只占一行高度、把空间留给站名；loopRouteMap 为 true 时，环线（MTR 路线里 circularState 标成 CLOCKWISE/ANTICLOCKWISE 的）会画成环状线路图，判定不准时可用 loopRouteNames / straightRouteNames 按线路名关键字强制指定；arrowColor 是方向箭头的颜色 [R,G,B]；arrowBlink 为 true 时箭头在「渐变款」和「纯红款」之间硬切闪动，arrowBlinkPeriod 是每种画法持续的时间（秒，默认 0.3）；debugLog 打开后会在日志里打印路线、环线判定与换乘统计",
 
   "lcdSize": [2185, 280],
   "pageDuration": 10,
@@ -16,6 +16,12 @@
   "connectingBadgeStyle": "gray",
   "connectingBadgeGray": [110, 117, 124],
   "hubBadgesHorizontal": true,
+  "loopRouteMap": true,
+  "loopRouteNames": [],
+  "straightRouteNames": [],
+  "arrowColor": [226, 0, 24],
+  "arrowBlink": true,
+  "arrowBlinkPeriod": 0.3,
 
   "mirrorRightScreen": true,
   "mirrorModules": {

@@ -46,6 +46,19 @@ const CONNECTING_BADGE_GRAY_RGB = (CONFIG.connectingBadgeGray == null) ? [110, 1
 const GRAY_CONNECTING_BADGE = (CONNECTING_BADGE_STYLE == "gray");
 // 一个站换乘线路很多时，徽标是否横向排成一行（这样只占一行高度，站名可以画大）
 const HORIZONTAL_HUB_BADGES = (CONFIG.hubBadgesHorizontal == null) ? true : CONFIG.hubBadgesHorizontal;
+// 环线（末站又回到起点站）是否画成环状线路图
+const LOOP_ROUTE_MAP = (CONFIG.loopRouteMap == null) ? true : CONFIG.loopRouteMap;
+// 按线路名强制指定画法：名字里含这些关键字的线路，分别强制按环线 / 按直线画
+const FORCE_LOOP_ROUTES = (CONFIG.loopRouteNames == null) ? [] : CONFIG.loopRouteNames;
+const FORCE_STRAIGHT_ROUTES = (CONFIG.straightRouteNames == null) ? [] : CONFIG.straightRouteNames;
+// 方向箭头的颜色（[R,G,B]）：纯红款用的红
+const ARROW_COLOR_RGB = (CONFIG.arrowColor == null) ? [226, 0, 24] : CONFIG.arrowColor;
+// 方向箭头是否闪动：在「渐变款」和「纯红款」之间硬切（没有过渡）
+const ARROW_BLINK = (CONFIG.arrowBlink == null) ? true : CONFIG.arrowBlink;
+// 闪动时每种画法持续的时间（秒）
+const ARROW_BLINK_PERIOD = (CONFIG.arrowBlinkPeriod == null) ? 0.3 : CONFIG.arrowBlinkPeriod;
+// 预览/调试用：设成 0 或 1 可以把这个相位固定住，游戏里保持 null
+let ARROW_BLINK_PHASE_LOCK = null;
 
 /* ============================== 页面 ============================== */
 
@@ -117,8 +130,8 @@ const COLOR_TEAL = rgb(52, 152, 158);       // 未到站圆点
 const COLOR_MAP_DOT_PASSED = rgb(226, 231, 235);    // 已过站圆点
 const COLOR_MAP_TEXT_PASSED = rgb(178, 186, 194);   // 已过站站名
 const COLOR_MAP_PINYIN_PASSED = rgb(202, 208, 214); // 已过站拼音
-const COLOR_ARROW = rgb(226, 0, 24);        // 方向箭头尖端（红）
-const COLOR_ARROW_TAIL = rgb(255, 200, 90); // 方向箭头尾部（黄，向末端淡出）
+const COLOR_ARROW = rgb(ARROW_COLOR_RGB[0], ARROW_COLOR_RGB[1], ARROW_COLOR_RGB[2]); // 方向箭头（纯红款）
+const COLOR_ARROW_TAIL = rgb(255, 200, 90); // 方向箭头尾部（黄，向末端淡出；渐变款用）
 const COLOR_RING_ARROW = rgb(27, 60, 110);  // 换乘站的环形双向箭头
 const COLOR_RING_ARROW_PASSED = rgb(172, 184, 196); // 已过站的环形箭头
 const COLOR_STRIP_BAND = rgba(255, 255, 255, 150);  // 站名条浅色带
@@ -645,14 +658,32 @@ function drawNoRouteScreen(g) {
 /* ============================== 方向箭头与换乘标记 ============================== */
 
 /**
- * 绘制指示行驶方向的渐变箭头（尖端红色，尾部渐变为黄色并淡出）。
+ * 方向箭头当前该用哪种画法：0 = 渐变款（尖端红、尾部淡到线路带底色），1 = 纯红款。
+ * 两个相位每 ARROW_BLINK_PERIOD 秒硬切一次，没有渐变过渡。
+ */
+function getArrowBlinkPhase() {
+    if (ARROW_BLINK_PHASE_LOCK != null) {
+        return ARROW_BLINK_PHASE_LOCK;
+    }
+    if (!ARROW_BLINK) {
+        return 1; // 不闪动时固定用纯红款
+    }
+    let period = Math.max(0.05, ARROW_BLINK_PERIOD);
+    return Math.floor(getGameTime() / period) % 2;
+}
+
+/**
+ * 绘制指示行驶方向的箭头。全线线路图、环线图、站名条共用这一个函数，
+ * 颜色跟着 getArrowBlinkPhase() 在「渐变款」和「纯红款」之间硬切。
+ *
+ * @param {Graphics2D} g 绘图对象。
  * @param {Number} tipX 箭头尖端 x。
  * @param {Number} centerY 箭头中线 y。
  * @param {Number} direction 1 表示指向右，-1 表示指向左。
  * @param {Number} length 箭头总长。
  * @param {Number} headHeight 箭头头部高。
  * @param {Number} shaftHeight 箭杆高。
- * @param {Color} backgroundColor 箭头所在底色，用于让尾部淡出到背景。
+ * @param {Color} backgroundColor 箭头所在底色，渐变款用它让尾部淡出。
  */
 function drawDirectionArrow(g, tipX, centerY, direction, length, headHeight, shaftHeight, backgroundColor) {
     let headLength = length * 0.45;
@@ -660,7 +691,6 @@ function drawDirectionArrow(g, tipX, centerY, direction, length, headHeight, sha
     let headBackX = tipX - direction * headLength;
     let halfHead = headHeight / 2;
     let halfShaft = shaftHeight / 2;
-    let tailColor = blend(COLOR_ARROW_TAIL, backgroundColor, 0.45);
 
     let path = new GeneralPath();
     path.moveTo(tipX, centerY);
@@ -672,7 +702,13 @@ function drawDirectionArrow(g, tipX, centerY, direction, length, headHeight, sha
     path.lineTo(headBackX, centerY + halfHead);
     path.closePath();
 
-    g.setPaint(new GradientPaint(tipX, centerY, COLOR_ARROW, tailX, centerY, tailColor));
+    if (getArrowBlinkPhase() == 0) {
+        // 渐变款：尖端红，尾部混进黄并淡到线路带底色
+        let tailColor = (backgroundColor == null) ? COLOR_ARROW_TAIL : blend(COLOR_ARROW_TAIL, backgroundColor, 0.45);
+        g.setPaint(new GradientPaint(tipX, centerY, COLOR_ARROW, tailX, centerY, tailColor));
+    } else {
+        g.setColor(COLOR_ARROW); // 纯红款：整支一个颜色
+    }
     g.fill(path);
     g.setColor(COLOR_ARROW);
 }
@@ -738,6 +774,12 @@ function drawRouteMapModule(g, ctx, box, inner) {
     const stations = routeInfo.stationInfoList;
     const count = stations.length;
     if (count <= 0) {
+        return;
+    }
+
+    // 环线（末站又回到起点站）画成环形，见下面的 drawLoopRouteMap
+    if (LOOP_ROUTE_MAP && isLoopRoute(routeInfo)) {
+        drawLoopRouteMap(g, ctx, box, inner);
         return;
     }
 
@@ -1168,6 +1210,341 @@ function paintRouteMapBadge(g, interchangeRoute, layout, number, cjkText, enText
         drawText(g, enText, textX,
             Math.round(y + SY * 2 + lineHeight + enMetrics.getAscent() + (lineHeight - enMetrics.getHeight()) / 2));
     }
+}
+/* ============================== 环线线路图 ============================== */
+
+const LOOP_NAME_BLOCK = SY * 56;    // 环线图：圈外站名区高度（中文 + 英文两行）
+const LOOP_BAND_WIDTH = SY * 20;    // 环线图：线路带宽度
+
+/**
+ * 取 MTR 路线的环形状态："NONE"（普通线路）、"CLOCKWISE" / "ANTICLOCKWISE"（环形线路）。
+ * MTR 的 Route 自带 circularState 字段，这是判断环线最可靠的办法；
+ * 读不到（老版本数据或没有这个字段）时返回 null，由调用方退回别的判断。
+ */
+function getCircularState(route) {
+    if (route == null) {
+        return null;
+    }
+    try {
+        let state = route.circularState;
+        if (state == null) {
+            return null;
+        }
+        return String(state);
+    } catch (error) {
+        return null;
+    }
+}
+
+/**
+ * 判断是不是环线（车站要绕成一圈画）。
+ *
+ * 首选 MTR 路线自带的 circularState：环形线路在 MTR 里就是靠它标记的，
+ * 不管路线的车站表有没有把起点再列一次都能认出来。
+ * 读不到这个字段时，才退回「末站又是起点站」的老判断。
+ * config.json 里还能用 loopRouteNames / straightRouteNames 按名字强制指定。
+ */
+function isLoopRoute(routeInfo) {
+    let list = routeInfo.stationInfoList;
+    if (list == null || list.length < 6) {
+        return false;
+    }
+    let routeName = String(routeInfo.routeName);
+    if (matchesRouteName(routeName, FORCE_STRAIGHT_ROUTES)) {
+        return false;
+    }
+    if (matchesRouteName(routeName, FORCE_LOOP_ROUTES)) {
+        return true;
+    }
+    let circular = getCircularState(routeInfo.route);
+    if (circular != null && circular.length > 0) {
+        return circular != "NONE";
+    }
+    let first = list[0];
+    let last = list[list.length - 1];
+    if (Number(first.platformId) != Number(last.platformId)) {
+        return false;
+    }
+    return toJsString(first.stationName) == toJsString(last.stationName);
+}
+
+/** 线路名里是否含有配置里给的某个关键字（用来强制指定环线 / 直线画法）。 */
+function matchesRouteName(routeName, keywords) {
+    if (keywords == null || keywords.length == 0) {
+        return false;
+    }
+    for (let i = 0; i < keywords.length; i++) {
+        let keyword = String(keywords[i]);
+        if (keyword.length > 0 && routeName.indexOf(keyword) >= 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * 环线线路图：车站不排成一条直线，而是绕成一圈。
+ * 上半圈从左往右、下半圈从右往左，正好是列车绕圈的顺序；
+ * 站名（中文在上、英文在下）排在圈外，换乘徽标排在圈内，方向箭头跟着下一站走。
+ */
+function drawLoopRouteMap(g, ctx, box, inner) {
+    const routeInfo = ctx.routeInfo;
+    const routeColor = ctx.routeColor;
+    const stations = routeInfo.stationInfoList;
+    // 环形线路的车站表有两种写法：末尾把起点再列一次，或者只列一圈。
+    // 末尾重复的那种不画两次，所以圈上的站数要减一。
+    let loopCount = stations.length;
+    let firstStation = stations[0];
+    let lastStation = stations[stations.length - 1];
+    if (Number(firstStation.platformId) == Number(lastStation.platformId)
+        && toJsString(firstStation.stationName) == toJsString(lastStation.stationName)) {
+        loopCount = stations.length - 1;
+    }
+    if (loopCount < 6) {
+        return;
+    }
+
+    const cardLeft = MARGIN;
+    const cardRight = WIDTH - MARGIN;
+    const cardTop = HEADER_HEIGHT;
+    const cardBottom = HEIGHT - CARD_BOTTOM_MARGIN;
+
+    // 白色卡片
+    g.setColor(COLOR_CARD);
+    g.fillRoundRect(cardLeft, cardTop, cardRight - cardLeft, cardBottom - cardTop, CARD_RADIUS, CARD_RADIUS);
+
+    // 圈的尺寸：上下各留出站名的地方，左右各留一点边距
+    const bandHalf = LOOP_BAND_WIDTH / 2;
+    const ringTop = cardTop + LOOP_NAME_BLOCK;
+    const ringBottom = cardBottom - LOOP_NAME_BLOCK;
+    const ringHeight = ringBottom - ringTop;
+    const ringRadius = ringHeight / 2;
+    const ringLeft = cardLeft + SX * 40;
+    const ringRight = cardRight - SX * 40;
+    const straightLeft = ringLeft + ringRadius;
+    const straightRight = ringRight - ringRadius;
+
+    // 上半圈、下半圈各排几颗
+    const topCount = Math.ceil(loopCount / 2);
+    const bottomCount = loopCount - topCount;
+
+    // 站序 -> 圈上的位置（未镜像的坐标）：上半圈从左往右，下半圈从右往左
+    let positions = [];
+    for (let i = 0; i < loopCount; i++) {
+        if (i < topCount) {
+            let t = (topCount == 1) ? 0.5 : (i / (topCount - 1));
+            positions.push({x: straightLeft + (straightRight - straightLeft) * t, onTop: true});
+        } else {
+            let j = i - topCount;
+            let t = (bottomCount == 1) ? 0.5 : (j / (bottomCount - 1));
+            positions.push({x: straightRight - (straightRight - straightLeft) * t, onTop: false});
+        }
+    }
+    const spacing = (topCount > 1) ? (straightRight - straightLeft) / (topCount - 1)
+        : (straightRight - straightLeft);
+
+    const direction = getScreenDirection(routeInfo);
+    const markerIndex = Math.max(0, Math.min(routeInfo.nextStationIndex, loopCount - 1));
+
+    // 模块内部镜像、或者列车反方向绕圈时，整圈左右对调。
+    // 圈本身左右对称，对调过来站序就跟着翻了，两块屏的阅读方向一致。
+    const flip = (inner ? 1 : 0) != (direction < 0 ? 1 : 0);
+    const mirrorX = function (x) { return flip ? (cardLeft + cardRight - x) : x; };
+
+    // 线路带：整圈一条粗线，用线路色的浅色
+    const bandColor = blend(routeColor, Color.WHITE, 0.72);
+    g.setStroke(new BasicStroke(LOOP_BAND_WIDTH, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
+    g.setColor(bandColor);
+    g.drawRoundRect(Math.round(ringLeft), Math.round(ringTop), Math.round(ringRight - ringLeft),
+        Math.round(ringHeight), Math.round(ringRadius * 2), Math.round(ringRadius * 2));
+    g.setStroke(new BasicStroke(1));
+
+    const dotRadius = Math.max(sr(5), SY * 8);
+    for (let i = 0; i < loopCount; i++) {
+        let station = stations[i];
+        let x = mirrorX(positions[i].x);
+        let onTop = positions[i].onTop;
+        let dotY = onTop ? ringTop : ringBottom;
+
+        // 当前站用线路色，已过站淡一些（要和线路带的浅色拉开，不能直接用线路图的白灰）
+        let passed = (direction > 0) ? (i < markerIndex) : (i > markerIndex);
+        let current = (i == markerIndex);
+        let dotColor = passed ? blend(COLOR_TEAL, bandColor, 0.55) : (current ? routeColor : COLOR_TEAL);
+        let badges = collectInterchangeBadges(station.interchangeInfo);
+
+        if (badges.length > 0) { // 换乘站：白环 + 环形双向箭头
+            drawInterchangeRing(g, x, dotY, dotRadius, dotColor,
+                passed ? COLOR_RING_ARROW_PASSED : COLOR_RING_ARROW);
+        } else {
+            g.setColor(Color.WHITE);
+            g.fillOval(Math.round(x - dotRadius - sr(3)), Math.round(dotY - dotRadius - sr(3)),
+                dotRadius * 2 + sr(6), dotRadius * 2 + sr(6));
+            g.setColor(dotColor);
+            g.fillOval(Math.round(x - dotRadius), Math.round(dotY - dotRadius), dotRadius * 2, dotRadius * 2);
+        }
+
+        // 站名排在圈外，换乘徽标排在圈内
+        drawLoopStationName(g, station, x, onTop, dotY, bandHalf, spacing, passed);
+        drawLoopBadges(g, badges, x, onTop, dotY, bandHalf, spacing, ringLeft, ringRight, cardLeft, cardRight);
+    }
+
+    // 方向箭头：画在下一站旁边，指向列车的行驶方向
+    drawLoopDirectionArrow(g, positions, markerIndex, mirrorX, dotRadius, spacing, bandColor, ringTop, ringBottom);
+}
+
+/** 环线图：圈外的站名（中文在上、英文在下，整块以车站为中心）。 */
+function drawLoopStationName(g, station, centerX, onTop, edgeY, bandHalf, spacing, passed) {
+    let stationName = toJsString(station.stationName);
+    let cjkName = toJsString(TextUtil.getCjkParts(stationName));
+    let enName = toJsString(TextUtil.getNonCjkParts(stationName));
+    if (cjkName.length == 0) {
+        cjkName = enName;
+        enName = "";
+    }
+    if (cjkName.length == 0) {
+        return;
+    }
+    if (enName == cjkName) {
+        enName = "";
+    }
+
+    const maxWidth = spacing * 0.92;
+    let cjkSize = fitFontSize(g, SHS_BOLD, cjkName, maxWidth, 0, sz(15), sz(7));
+    let cjkFont = SHS_BOLD.deriveFont(cjkSize * 1.0);
+    let cjkMetrics = g.getFontMetrics(cjkFont);
+
+    let enFont = null;
+    let enMetrics = null;
+    if (enName.length > 0) {
+        let enSize = fitFontSize(g, ROBOTO_REGULAR, enName, maxWidth * 0.98, 0, Math.min(cjkSize * 0.62, sz(10)), sz(4));
+        enFont = ROBOTO_REGULAR.deriveFont(enSize * 1.0);
+        enMetrics = g.getFontMetrics(enFont);
+    }
+
+    const gap = sr(7);
+    let cjkBaseline = 0;
+    let enBaseline = 0;
+    if (onTop) { // 整块在圈上方：英文贴近线路带，中文在上一行
+        let blockBottom = edgeY - bandHalf - gap;
+        if (enFont != null) {
+            enBaseline = Math.round(blockBottom - enMetrics.getDescent());
+            cjkBaseline = Math.round(enBaseline - enMetrics.getAscent() - enMetrics.getDescent() - cjkMetrics.getDescent());
+        } else {
+            cjkBaseline = Math.round(blockBottom - cjkMetrics.getDescent());
+        }
+    } else { // 整块在圈下方：中文贴着线路带，英文在下一行
+        let blockTop = edgeY + bandHalf + gap;
+        cjkBaseline = Math.round(blockTop + cjkMetrics.getAscent());
+        if (enFont != null) {
+            enBaseline = Math.round(blockTop + cjkMetrics.getHeight() + enMetrics.getAscent());
+        }
+    }
+
+    g.setFont(cjkFont);
+    // 环线整圈一直在跑，已过站只稍淡一点，不能淡到看不清
+    g.setColor(passed ? blend(COLOR_TEXT, Color.WHITE, 0.45) : COLOR_TEXT);
+    drawStringCentered(g, cjkName, centerX, cjkBaseline);
+    if (enFont != null) {
+        g.setFont(enFont);
+        g.setColor(passed ? blend(COLOR_TEXT_GRAY, Color.WHITE, 0.45) : COLOR_TEXT_GRAY);
+        drawStringCentered(g, enName, centerX, enBaseline);
+    }
+}
+
+/**
+ * 环线图：圈内的换乘徽标。
+ * 按圈内可用宽度分行，第一行贴着线路带，后面的行依次往圈里面排。
+ */
+function drawLoopBadges(g, badges, centerX, onTop, edgeY, bandHalf, spacing,
+                        ringLeft, ringRight, cardLeft, cardRight) {
+    if (badges.length == 0) {
+        return;
+    }
+    const maxWidth = Math.max(SX * 36, spacing * 0.94);
+
+    let rows = [];
+    let row = [];
+    let rowWidth = 0;
+    for (let i = 0; i < badges.length; i++) {
+        let badge = badges[i];
+        let width = layoutRouteMapBadge(g, SX * 92, badge.number, badge.cjkText, badge.enText).width;
+        let needed = (row.length > 0) ? (rowWidth + BADGE_GAP + width) : width;
+        if (row.length > 0 && needed > maxWidth) {
+            rows.push(row);
+            row = [];
+            needed = width;
+        }
+        row.push(badge);
+        rowWidth = needed;
+    }
+    if (row.length > 0) {
+        rows.push(row);
+    }
+
+    const innerEdge = onTop ? (edgeY + bandHalf + sr(6)) : (edgeY - bandHalf - sr(6));
+    for (let r = 0; r < rows.length; r++) {
+        drawLoopBadgeRow(g, rows[r], centerX, onTop, innerEdge, r, ringLeft, ringRight, cardLeft, cardRight);
+    }
+}
+
+/** 环线图：圈内的一行换乘徽标（整行以车站为中心）。 */
+function drawLoopBadgeRow(g, badges, centerX, onTop, innerEdge, rowIndex, ringLeft, ringRight, cardLeft, cardRight) {
+    let layouts = [];
+    let totalWidth = 0;
+    for (let i = 0; i < badges.length; i++) {
+        let layout = layoutRouteMapBadge(g, SX * 92, badges[i].number, badges[i].cjkText, badges[i].enText);
+        layouts.push(layout);
+        totalWidth += layout.width + ((i > 0) ? BADGE_GAP : 0);
+    }
+
+    let x = centerX - totalWidth / 2;
+    let lo = Math.max(ringLeft + sr(4), cardLeft + sr(6));
+    let hi = Math.min(ringRight - sr(4), cardRight - sr(6));
+    if (x < lo) {
+        x = lo;
+    }
+    if (x + totalWidth > hi) {
+        x = hi - totalWidth;
+    }
+
+    let y = onTop
+        ? Math.round(innerEdge + rowIndex * BADGE_HEIGHT)
+        : Math.round(innerEdge - (rowIndex + 1) * BADGE_HEIGHT);
+    for (let i = 0; i < badges.length; i++) {
+        paintRouteMapBadge(g, badges[i].route, layouts[i], badges[i].number, badges[i].cjkText, badges[i].enText,
+            x + layouts[i].width / 2, Math.round(x), y);
+        x += layouts[i].width + BADGE_GAP;
+    }
+}
+
+/** 环线图：方向箭头画在下一站旁边，指向列车的行驶方向。 */
+function drawLoopDirectionArrow(g, positions, markerIndex, mirrorX, dotRadius, spacing, bandColor, ringTop, ringBottom) {
+    const marker = positions[markerIndex];
+    const previous = positions[(markerIndex + positions.length - 1) % positions.length];
+    const markerX = mirrorX(marker.x);
+    const previousX = mirrorX(previous.x);
+    const markerY = marker.onTop ? ringTop : ringBottom;
+
+    let travel = (markerX > previousX) ? 1 : -1; // 列车从上一站开向下一站的方向
+    let length = Math.max(sr(14), Math.min(sr(26), spacing * 0.22));
+    let tipX = markerX - travel * (dotRadius + sr(6));
+    let tailX = tipX - travel * length;
+
+    // 箭头要留在白色卡片里
+    let cardLeft = MARGIN + sr(6);
+    let cardRight = WIDTH - MARGIN - sr(6);
+    let lo = Math.min(tailX, tipX);
+    let hi = Math.max(tailX, tipX);
+    if (lo < cardLeft) {
+        tipX += cardLeft - lo;
+    }
+    if (hi > cardRight) {
+        tipX -= hi - cardRight;
+    }
+
+    drawDirectionArrow(g, tipX, markerY, travel, length,
+        Math.max(sr(12), Math.round(length * 0.78)),
+        Math.max(sr(6), Math.round(length * 0.38)), bandColor);
 }
 /* ============================== 「下一站」页 ============================== */
 

@@ -149,6 +149,13 @@ function create(ctx, state, train) {
     state.canvasRight = new java.awt.image.BufferedImage(WIDTH, HEIGHT, java.awt.image.BufferedImage.TYPE_INT_ARGB);
     state.graphicsLeft = state.canvasLeft.createGraphics();
     state.graphicsRight = state.canvasRight.createGraphics();
+    // 箭头闪动要两个相位：提前各画一张，闪的时候只换贴哪张，不再重画整页
+    if (ARROW_BLINK) {
+        state.canvasLeftBlink = new java.awt.image.BufferedImage(WIDTH, HEIGHT, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        state.canvasRightBlink = new java.awt.image.BufferedImage(WIDTH, HEIGHT, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        state.graphicsLeftBlink = state.canvasLeftBlink.createGraphics();
+        state.graphicsRightBlink = state.canvasRightBlink.createGraphics();
+    }
     state.canvasDirty = true;
     // 开门动画的重画频率（1 秒一次开合，这里限制每秒重画次数）
     state.animRate = new RateLimit(1.0 / DOOR_ANIMATION_FPS);
@@ -166,8 +173,18 @@ function dispose(ctx, state, train) {
         state.graphicsRight.dispose();
         state.graphicsRight = null;
     }
+    if (state.graphicsLeftBlink != null) {
+        state.graphicsLeftBlink.dispose();
+        state.graphicsLeftBlink = null;
+    }
+    if (state.graphicsRightBlink != null) {
+        state.graphicsRightBlink.dispose();
+        state.graphicsRightBlink = null;
+    }
     state.canvasLeft = null;
     state.canvasRight = null;
+    state.canvasLeftBlink = null;
+    state.canvasRightBlink = null;
     printDebug("dispose 车=" + train.id());
 }
 
@@ -266,6 +283,20 @@ function render(ctx, state, train) {
         repaintReason = "路线信息";
     }
 
+    // 方向箭头闪动：渐变款 / 纯红款每 ARROW_BLINK_PERIOD 秒硬切一次。
+    // 两张公共页面是换页时一起画好的，这里只换贴哪一张，整页不用重画，
+    // 车厢编号、车门面板也都照常逐节车厢补画。
+    if (ARROW_BLINK) {
+        let blinkPhase = getArrowBlinkPhase();
+        if (state.arrowBlinkPhase != blinkPhase) {
+            state.arrowBlinkPhase = blinkPhase;
+            needRepaint = true;
+            if (repaintReason.length == 0) {
+                repaintReason = "箭头闪动";
+            }
+        }
+    }
+
     let pageType = arrived ? SCREEN_ARRIVED : ((state.pageTracker == null) ? SCREEN_ARRIVED : String(state.pageTracker.stateNow()));
     let leftDoorMode = getDoorMode(arrived, leftDoorWillOpen, leftDoorOpen);
     let rightDoorMode = getDoorMode(arrived, rightDoorWillOpen, rightDoorOpen);
@@ -290,13 +321,26 @@ function render(ctx, state, train) {
         }
     }
 
-    // 公共页面（不含车门面板与车厢编号）只在换页、换路线、换状态时重画
+    // 公共页面（不含车门面板与车厢编号）只在换页、换路线、换状态时重画；
+    // 闪动要的两个相位在这里一次画好，之后闪动只换贴图，不重画整页。
     // 右侧屏按模块镜像：版面翻到另一侧，文字仍然正向
     if (state.canvasDirty) {
+        ARROW_BLINK_PHASE_LOCK = 0;   // 相位 0：渐变款箭头
         drawScreen(state.graphicsLeft, state.routeInfo, trainStatus, pageType, leftDoorWillOpen, leftDoorOpen, 0, false, false);
         drawScreen(state.graphicsRight, state.routeInfo, trainStatus, pageType, rightDoorWillOpen, rightDoorOpen, 0, false, MIRROR_RIGHT_SCREEN);
+        if (state.graphicsLeftBlink != null) {
+            ARROW_BLINK_PHASE_LOCK = 1;   // 相位 1：纯红款箭头
+            drawScreen(state.graphicsLeftBlink, state.routeInfo, trainStatus, pageType, leftDoorWillOpen, leftDoorOpen, 0, false, false);
+            drawScreen(state.graphicsRightBlink, state.routeInfo, trainStatus, pageType, rightDoorWillOpen, rightDoorOpen, 0, false, MIRROR_RIGHT_SCREEN);
+        }
+        ARROW_BLINK_PHASE_LOCK = null;
         state.canvasDirty = false;
     }
+
+    // 这一帧该贴哪一张公共页面：闪动就是在这两张之间硬切，其它内容完全一样
+    let blinkPhase = getArrowBlinkPhase();
+    let canvasLeft = (blinkPhase == 1 && state.canvasLeftBlink != null) ? state.canvasLeftBlink : state.canvasLeft;
+    let canvasRight = (blinkPhase == 1 && state.canvasRightBlink != null) ? state.canvasRightBlink : state.canvasRight;
 
     // 逐节车厢：贴公共页面 + 画本侧车门面板（可动画） + 补画本车厢的车厢编号
     let noRoute = (state.routeInfo == null);
@@ -308,7 +352,7 @@ function render(ctx, state, train) {
             let coachNumber = perCar ? (i + 1) : cars; // 不分车厢时显示编组总数
 
             let g = state.screens[i].graphicsFor("lcd_door_left");
-            g.drawImage(state.canvasLeft, 0, 0, null);
+            g.drawImage(canvasLeft, 0, 0, null);
             if (showDoorPanel) {
                 drawDoorPanel(g, routeColor, leftDoorMode, getDoorFraction(leftDoorMode, animFraction), LAYOUT_LEFT_SCREEN);
             }
@@ -317,7 +361,7 @@ function render(ctx, state, train) {
             }
 
             g = state.screens[i].graphicsFor("lcd_door_right");
-            g.drawImage(state.canvasRight, 0, 0, null);
+            g.drawImage(canvasRight, 0, 0, null);
             if (showDoorPanel) {
                 drawDoorPanel(g, routeColor, rightDoorMode, getDoorFraction(rightDoorMode, animFraction), LAYOUT_RIGHT_SCREEN);
             }

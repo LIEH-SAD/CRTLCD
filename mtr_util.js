@@ -202,28 +202,102 @@ function getRouteInfo(train, trainStatus, platformInfo) {
         index = Math.max(0, Math.min(train.getThisRoutePlatformsNextIndex(), stationInfoList.length - 1));
     }
     routeInfo.nextStationIndex = index;
-    routeInfo.travelDirection = getTravelDirection(train, stationInfoList);
-    printRouteDebug(route, stationInfoList);
+    routeInfo.travelDirection = resolveTravelDirection(train, route, stationInfoList, index);
+    printRouteDebug(route, stationInfoList, routeInfo);
     return routeInfo;
 }
 
 /**
- * 按 config.json 的 debugLog 打印一行路线与换乘统计，排查「换乘不显示」时很有用：
- * 能看出平台有没有成功对到车站、缓存里到底有哪些线路、最后画出几个徽标。
+ * 按 config.json 的 debugLog 打印一行路线与换乘统计，排查「换乘不显示」「方向不对」时很有用：
+ * 能看出平台有没有对到车站、缓存里有哪些线路、画出几个徽标，以及这次按哪个方向画。
  */
-function printRouteDebug(route, stationInfoList) {
+function printRouteDebug(route, stationInfoList, routeInfo) {
     if (!DEBUG_LOG) {
         return;
     }
     printDebug("路线 " + normalizeRouteName(route == null ? "" : route.name)
         + " 隐藏=" + (route != null && route.isHidden == true)
+        + " 环形=" + (getCircularState(route) == null ? "无字段" : getCircularState(route))
         + " 平台命中 " + ROUTE_DEBUG.resolvedPlatforms + "/" + ROUTE_DEBUG.totalPlatforms
         + (ROUTE_DEBUG.usedFallback ? "（站表用了列车路径兜底）" : "")
+        + "；方向=" + ((routeInfo == null) ? "?" : (routeInfo.travelDirection > 0 ? "递增" : "递减"))
         + "；" + getInterchangeDebugText(stationInfoList));
 }
 
 /**
+ * 每列车记住上一次的「下一站序号」和这次判断出的方向，见 {@link resolveTravelDirection}。
+ * 键是列车编号，值是 {routeName, count, firstId, lastId, nextIndex, direction}。
+ */
+let DIRECTION_MEMORY = {};
+
+/**
+ * 决定这次线路图按哪个方向画（1 = 站序递增，-1 = 站序递减）。
+ *
+ * 折返（不一定在终点站）时最容易出错：折返站的路线到此为止，列车剩下的路径可能只有 1 站，
+ * 或者路线对象整个换成反方向那条，这时按「上一站 → 下一站」的序号根本算不出方向，
+ * 一旦算成 0，站名条和线路图就会把「已过站 / 未到站」翻到对面，看上去就是方向全乱。
+ *
+ * 所以按下面的顺序判断：
+ *   1. 下一站序号比上次大 1（或环形绕回起点）→ 递增；比上次小 1（折返后就是这样）→ 递减；
+ *   2. 序号没动或跳太多，就用路线算式的结果；
+ *   3. 算式也给不出（0）就沿用上一次的方向，别让画面突然翻面；
+ *   4. 连记录都没有才默认递增（和线路图默认站序一致）。
+ *
+ * @param {Train} train 列车。
+ * @param {Route} route 当前路线。
+ * @param {Array} stationInfoList 线路图上的车站信息数组。
+ * @param {Number} index 下一站在 stationInfoList 里的序号。
+ * @return {Number} 1 或 -1，不会是 0。
+ */
+function resolveTravelDirection(train, route, stationInfoList, index) {
+    let key = "";
+    try {
+        key = String(train.id());
+    } catch (error) {
+        key = "";
+    }
+    let routeName = normalizeRouteName(route == null ? "" : route.name);
+    let count = stationInfoList.length;
+    let firstId = String(stationInfoList[0].platformId);
+    let lastId = String(stationInfoList[count - 1].platformId);
+    let memory = (key.length == 0) ? null : DIRECTION_MEMORY[key];
+    if (memory != null && (memory.routeName != routeName || memory.count != count
+            || memory.firstId != firstId || memory.lastId != lastId)) {
+        memory = null; // 换线、站表变了或者站序整个翻过来了，旧记录作废
+    }
+
+    let direction = 0;
+    if (memory != null) {
+        let last = count - 1;
+        let step = index - memory.nextIndex;
+        if (step == 1 || (memory.nextIndex == last && index == 0)) {
+            direction = 1;   // 下一站往前挪了一站
+        } else if (step == -1 || (memory.nextIndex == 0 && index == last)) {
+            direction = -1;  // 下一站往回挪了一站：折返之后就是这种
+        }
+    }
+    if (direction == 0) {
+        direction = getTravelDirection(train, stationInfoList);
+    }
+    if (direction == 0 && memory != null) {
+        direction = memory.direction;
+    }
+    if (direction == 0) {
+        direction = 1;
+    }
+
+    if (key.length > 0) {
+        DIRECTION_MEMORY[key] = {
+            routeName: routeName, count: count, firstId: firstId, lastId: lastId,
+            nextIndex: index, direction: direction
+        };
+    }
+    return direction;
+}
+
+/**
  * 判断列车在线路图的车站顺序中是朝序号增大（右侧）还是减小（左侧）的方向行驶。
+ * 注意：折返、路线只剩 1 站等情况这里会返回 0，真正画图用的是 {@link resolveTravelDirection}。
  * @param {Train} train 要判断的列车。
  * @param {Array} stationInfoList 线路图上的车站信息数组（见 {@link getRouteInfo}）。
  * @return {Number} 1 表示朝序号增大方向，-1 表示朝序号减小方向，0 表示无法判断。
