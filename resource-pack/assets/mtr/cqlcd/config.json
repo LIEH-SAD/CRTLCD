@@ -1,0 +1,30 @@
+{
+  "_help": "lcdSize 是 4:3 画板分辨率；targetAspect 是车上屏幕比例（默认 16:9，画面会横向拉伸）；pages 是行车时下方模块的轮播顺序，可填 full_route_map / next_station / consist / door；pageDuration 是每页秒数；consistCars 是编组示意图辆数；debugLog 打开后会在日志里打印页面与路线信息",
+  "lcdSize": [
+    1123,
+    843
+  ],
+  "targetAspect": 1.7777778,
+  "pageDuration": 8,
+  "pages": [
+    "full_route_map",
+    "next_station",
+    "consist",
+    "door"
+  ],
+  "showCoachNumber": true,
+  "perCarCoachNumber": true,
+  "flipDoorSides": false,
+  "doorAnimation": true,
+  "doorAnimationFps": 10,
+  "consistCars": 6,
+  "topSafe": 12,
+  "screenWidth": 0.62,
+  "screenTop": 2.21,
+  "screenXTop": 1.14,
+  "screenXBottom": 1.18,
+  "debugLog": false,
+  "routeMapReverse": false,
+  "showHiddenRoutes": false,
+  "bottomSafe": 20
+}

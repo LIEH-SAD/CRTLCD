@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "轨道模型 (Rail Model) 定义",
+  "description": "对应资源包内的 assets/mtrsteamloco/rails/*.json，用于通过资源包添加更多的轨道模型。支持两种写法：单模型写法（文件顶层直接就是 { \"name\": ..., \"model\": ... }，此时以 JSON 文件名为内部名称）；多模型写法（顶层以任意 key 为映射名，值为模型对象，key 只用于内部记录、不会显示给玩家，每个必须非空且互不相同，JSON Schema 无法校验 key 的唯一性）。",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/model"
+    },
+    {
+      "type": "object",
+      "title": "多轨道写法",
+      "description": "顶层以任意 key 为映射名，每个 key 对应一个轨道模型。key 可任意选取、不会显示给玩家，但不能为 \"\"，且每个必须不同。",
+      "minProperties": 1,
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/model"
+      }
+    }
+  ],
+  "definitions": {
+    "model": {
+      "type": "object",
+      "title": "轨道模型",
+      "description": "一个轨道模型。name 与 model 均为必填项。",
+      "required": [
+        "name",
+        "model"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "这个模型显示在选择列表里的名称。"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+          "description": "这个模型所使用的 OBJ 文件的位置，需要按照 Minecraft 的“资源位置”写法转写，即 assets/mtrsteamloco/rails/teapot.obj 需写为 mtrsteamloco:rails/teapot.obj。导入模型、设定贴图、设定渲染批次等的方法参见 OBJ 模型相关适配。另外也可以使用 BVE CSV 文件，此时 Z 轴正方向向前。"
+        },
+        "repeatInterval": {
+          "type": "number",
+          "default": 0.5,
+          "description": "设定在应用到轨道上时两个相邻模型之间的间距，单位是 m，默认为 0.5。不建议设为 1 以上的值。"
+        },
+        "yOffset": {
+          "type": "number",
+          "default": 0,
+          "description": "设定轨道的垂直偏移量。这直接平移模型的原点(旋转中心)，因此或许对于制作悬挂式单轨轨道效果更好。默认为 0。"
+        },
+        "flipV": {
+          "type": "boolean",
+          "description": "设为 true 将把 OBJ 模型加载改为适配贴图 V 坐标正方向向上的导出方式的模式。"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

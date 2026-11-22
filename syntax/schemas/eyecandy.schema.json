@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "装饰物件 (EyeCandy) 定义",
+  "description": "对应资源包内的 assets/mtrsteamloco/eyecandies/*.json，用于导入装饰物件方块所显示的模型。支持两种写法：单模型写法（文件顶层直接就是 { \"name\": ..., \"model\": ... }，此时以 JSON 文件名为内部名称）；多模型写法（顶层以任意 key 为映射名，值为模型对象，key 只用于内部记录、不会显示给玩家，每个必须非空且互不相同，JSON Schema 无法校验 key 的唯一性）。",
+  "oneOf": [
+    {
+      "$ref": "#/definitions/model"
+    },
+    {
+      "type": "object",
+      "title": "多物件写法",
+      "description": "顶层以任意 key 为映射名，每个 key 对应一个装饰物件模型。key 可任意选取、不会显示给玩家，但不能为 \"\"，且每个必须不同。",
+      "minProperties": 1,
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/model"
+      }
+    }
+  ],
+  "definitions": {
+    "model": {
+      "type": "object",
+      "title": "装饰物件模型",
+      "description": "一个装饰物件。必填 name；模型类物件需提供 model，脚本类物件需提供 scriptFiles。",
+      "required": [
+        "name"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "model"
+          ]
+        },
+        {
+          "required": [
+            "scriptFiles"
+          ]
+        }
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "这个模型显示在选择列表里的名称，可以是字符串，也可以是 lang 文件中的 key。"
+        },
+        "model": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+          "description": "这个模型所使用的 OBJ 文件的位置，需要按照 Minecraft 的“资源位置”写法转写，即 assets/mtrsteamloco/eyecandies/teapot.obj 需写为 mtrsteamloco:eyecandies/teapot.obj。设定贴图、渲染批次等的方法与 OBJ 模型相关适配中相同。"
+        },
+        "scriptFiles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$"
+          },
+          "description": "这个模型所使用的脚本文件的位置。注意与 model 一同出现时不起作用。详见装饰物件相关脚本说明。"
+        },
+        "textureId": {
+          "type": "string",
+          "pattern": "^[a-z0-9_.-]+:[a-z0-9_./-]+$",
+          "description": "可用于创建多个同一模型不同贴图的物件。用法与 OBJ 列车模型中相同。"
+        },
+        "flipV": {
+          "type": "boolean",
+          "description": "设为 true 将把 OBJ 模型加载改为适配贴图 V 坐标正方向向上的导出方式的模式。"
+        },
+        "translation": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "对模型进行平移，后接 X、Y、Z 轴向上的移动距离。"
+        },
+        "rotation": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "对模型进行旋转，后接绕 X、Y、Z 轴向上的转动角度。"
+        },
+        "scale": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "对模型进行缩放，后接 X、Y、Z 轴向上的缩放比例，1 代表 100%。"
+        },
+        "mirror": {
+          "type": "array",
+          "items": {
+            "type": "boolean"
+          },
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "对模型进行翻转，后接三个布尔值，表示是否要对于 YZ、XZ、XY 平面翻转。"
+        },
+        "shape": {
+          "type": "string",
+          "default": "0, 0, 0, 16, 16, 16",
+          "pattern": "^\\s*-?\\d+(\\.\\d+)?(\\s*,\\s*-?\\d+(\\.\\d+)?){5}(\\s*/\\s*-?\\d+(\\.\\d+)?(\\s*,\\s*-?\\d+(\\.\\d+)?){5})*\\s*$",
+          "description": "方块的形状，每组六个值分别代表了最小点的坐标和最大点的坐标，每组用 / 分割，进行 or 运算。例如 \"0, 0, 0, 16, 8, 16/ 0, 8, 8, 16, 16,16\"。默认为 0, 0, 0, 16, 16, 16。"
+        },
+        "collisionShape": {
+          "type": "string",
+          "default": "0, 0, 0, 0, 0, 0",
+          "pattern": "^\\s*-?\\d+(\\.\\d+)?(\\s*,\\s*-?\\d+(\\.\\d+)?){5}(\\s*/\\s*-?\\d+(\\.\\d+)?(\\s*,\\s*-?\\d+(\\.\\d+)?){5})*\\s*$",
+          "description": "方块的碰撞形状，同 shape，每组六个值分别代表最小点和最大点的坐标，用 / 分割进行 or 运算。默认为 0, 0, 0, 0, 0, 0。超出 16 * 16 * 16 范围的碰撞箱可能不起作用。"
+        },
+        "fixedMatrix": {
+          "type": "boolean",
+          "default": false,
+          "description": "设为 true 后，物件的移动与旋转将会在装饰物件设置中锁定。默认为 false。"
+        },
+        "isTicketBarrier": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否作为闸机，默认为 false。"
+        },
+        "isEntrance": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否作为入口，默认为 false。"
+        },
+        "lightLevel": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "default": 0,
+          "description": "设置光照级别 0 到 15，默认为 0 (不发光)。"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

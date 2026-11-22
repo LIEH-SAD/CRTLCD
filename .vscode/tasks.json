@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "MTR: Initialize project",
+      "type": "shell",
+      "command": "npm run init",
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "MTR: Build resource pack",
+      "type": "shell",
+      "command": "npm run build",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "MTR: Set up test client",
+      "type": "shell",
+      "command": "npm run setup",
+      "problemMatcher": []
+    },
+    {
+      "label": "MTR: Install into test client",
+      "type": "shell",
+      "command": "npm run install-pack",
+      "problemMatcher": []
+    },
+    {
+      "label": "MTR: Run test client",
+      "type": "shell",
+      "command": "npm run launch",
+      "problemMatcher": []
+    },
+    {
+      "label": "MTR: Run unit tests",
+      "type": "shell",
+      "command": "npm run test",
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "name": "重庆轨道交通追加包obj版",
+  "version": "1.2.1",
+  "author": "",
+  "namespace": "mtr",
+  "pack": {
+    "packFormat": 8,
+    "description": "重庆轨道交通追加包obj版 V1.2.1(LCD更新)\n要什么名字&xz111-Misaka&Folanoel制作"
+  },
+  "paths": {
+    "source": "resource-pack",
+    "output": "dist/resource-pack",
+    "archive": "dist/重庆轨道交通追加包-CRTLCD.zip"
+  },
+  "archive": {
+    "enabled": true
+  }
+}

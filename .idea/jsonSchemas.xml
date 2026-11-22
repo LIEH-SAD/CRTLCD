@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="JsonSchemaMappingsProjectConfiguration">
+    <state>
+      <map>
+        <entry key="mtr-eyecandy">
+          <value>
+            <SchemaInfo>
+              <option name="name" value="MTR Steam Loco eyecandy" />
+              <option name="relativePathToSchema" value="syntax/schemas/eyecandy.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="resource-pack/assets/mtrsteamloco/eyecandies/*.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+        <entry key="mtr-rail-model">
+          <value>
+            <SchemaInfo>
+              <option name="name" value="MTR Steam Loco rail model" />
+              <option name="relativePathToSchema" value="syntax/schemas/rail-model.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="resource-pack/assets/mtrsteamloco/rails/*.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+        <entry key="mtr-custom-resources">
+          <value>
+            <SchemaInfo>
+              <option name="name" value="MTR custom resources" />
+              <option name="relativePathToSchema" value="syntax/schemas/mtr-custom-resources.schema.json" />
+              <option name="patterns">
+                <list>
+                  <Item>
+                    <option name="pattern" value="true" />
+                    <option name="path" value="**/mtr_custom_resources.json" />
+                    <option name="mappingKind" value="Pattern" />
+                  </Item>
+                </list>
+              </option>
+            </SchemaInfo>
+          </value>
+        </entry>
+      </map>
+    </state>
+  </component>
+</project>

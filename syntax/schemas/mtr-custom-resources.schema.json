@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "mtr_custom_resources.json",
+  "description": "MTR 的 mtr_custom_resources.json 文件。本 schema 仅覆盖文档中与 NTE 的 OBJ 列车模型相关的部分（custom_trains 中的 name、model、model_properties、texture_id、flipV）。其余字段与 MTR 本体一致，本 schema 未逐项覆盖，也未被限制。",
+  "type": "object",
+  "properties": {
+    "custom_trains": {
+      "type": "object",
+      "title": "自定义列车",
+      "description": "键为列车 ID，值为该列车的定义。使用 NTE 的 OBJ 列车模型时，此处的写法与使用 BBMODEL 并无不同。",
+      "additionalProperties": {
+        "$ref": "#/definitions/train"
+      }
+    }
+  },
+  "definitions": {
+    "train": {
+      "type": "object",
+      "title": "列车定义",
+      "description": "一列自定义列车的定义。NTE 在 MTR 定义的基础上增加了对 OBJ 模型的支持。其余字段与 MTR 本体一致，本 schema 未逐项覆盖。",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "列车在列表中的显示名称（MTR 字段）。"
+        },
+        "model": {
+          "type": "string",
+          "description": "填入 OBJ 文件的资源位置，这和使用 BBMODEL 时区别不大。NTE 额外支持多模型写法：\"模型1|白名单1;黑名单1;额外属性1|模型2|白名单2;黑名单2;额外属性2\"。其中前一部分是模型的资源位置；后一部分是由两个英文半角分号分隔的白名单、黑名单和额外属性。即使某一部分为空，也需要打分号。额外属性设为 reversed 时，这一模型在载入时会被绕 Y 轴旋转 180°，模型属性内的车门连动亦会相应自动更新。此多模型写法只能用于导入 OBJ，不能用于导入 BBMODEL 或混合使用 OBJ 和 BBMODEL。"
+        },
+        "model_properties": {
+          "type": "string",
+          "description": "填入模型属性文件的资源位置。模型属性文件可指定哪些部件在开门时要移动、哪些部件只在第几号车显示、哪些部件只在门开时显示等。"
+        },
+        "texture_id": {
+          "type": "string",
+          "description": "替换贴图的资源位置。使用 OBJ 模型时贴图是从 OBJ/MTL 里指定的，如果使用了一个文件名为 default.png 的贴图，它将被替换为本项的设定值，以便更换涂装。如果 OBJ/MTL 中没有使用任何名为 default.png 的贴图，那么本项的设定值将没有任何作用；不过如它不存在 MTR 会报错，所以可以将它设定为任意的实际存在的贴图文件，例如 minecraft:textures/misc/white.png。"
+        },
+        "flipV": {
+          "type": "boolean",
+          "description": "(可选) 设为 true 将把 OBJ 模型加载改为适配贴图 V 坐标正方向向上的导出方式的模式。"
+        }
+      }
+    }
+  }
+}

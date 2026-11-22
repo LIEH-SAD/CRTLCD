@@ -1,0 +1,23 @@
+{
+  "task.allowAutomaticTasks": "on",
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "resource-pack/assets/mtrsteamloco/eyecandies/*.json"
+      ],
+      "url": "./syntax/schemas/eyecandy.schema.json"
+    },
+    {
+      "fileMatch": [
+        "resource-pack/assets/mtrsteamloco/rails/*.json"
+      ],
+      "url": "./syntax/schemas/rail-model.schema.json"
+    },
+    {
+      "fileMatch": [
+        "**/mtr_custom_resources.json"
+      ],
+      "url": "./syntax/schemas/mtr-custom-resources.schema.json"
+    }
+  ]
+}
